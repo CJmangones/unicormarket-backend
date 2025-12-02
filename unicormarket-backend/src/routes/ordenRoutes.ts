@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
 import {
   crearOrden,
-  listarMisOrdenes,
+  listarMisOrdenes,   
 } from "../controllers/ordenController";
 
 const router = Router();
