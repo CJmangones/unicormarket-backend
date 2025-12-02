@@ -14,6 +14,7 @@ export const crearOrden = async (req: AuthRequest, res: Response) => {
       cantidad?: number;
     };
 
+    // 👇 AHORA SOLO PIDE ESTOS DOS CAMPOS
     if (!publicacion_id || !cantidad) {
       return res.status(400).json({
         message: "publicacion_id y cantidad son obligatorios",

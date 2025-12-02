@@ -31,7 +31,8 @@ export const listarPublicaciones = async (req: Request, res: Response) => {
       idx++;
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const query = `
       SELECT
@@ -68,7 +69,9 @@ export const listarPublicaciones = async (req: Request, res: Response) => {
     return res.json(rows);
   } catch (error) {
     console.error("Error listando publicaciones:", error);
-    return res.status(500).json({ message: "Error al obtener publicaciones" });
+    return res
+      .status(500)
+      .json({ message: "Error al obtener publicaciones" });
   }
 };
 
@@ -115,7 +118,9 @@ export const obtenerPublicacion = async (req: Request, res: Response) => {
     return res.json(rows[0]);
   } catch (error) {
     console.error("Error obteniendo publicación:", error);
-    return res.status(500).json({ message: "Error al obtener la publicación" });
+    return res
+      .status(500)
+      .json({ message: "Error al obtener la publicación" });
   }
 };
 
@@ -189,9 +194,160 @@ export const crearPublicacion = async (req: AuthRequest, res: Response) => {
       await pool.query(insertImagenes, values);
     }
 
-    return res.status(201).json({ id: publicacionId, message: "Publicación creada" });
+    return res
+      .status(201)
+      .json({ id: publicacionId, message: "Publicación creada" });
   } catch (error) {
     console.error("Error creando publicación:", error);
-    return res.status(500).json({ message: "Error al crear la publicación" });
+    return res
+      .status(500)
+      .json({ message: "Error al crear la publicación" });
+  }
+};
+
+/**
+ * Actualizar publicación (solo dueño)
+ */
+export const actualizarPublicacion = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "No autorizado" });
+    }
+
+    const { id } = req.params;
+
+    const {
+      categoria_id,
+      modalidad,
+      tipo,
+      titulo,
+      descripcion,
+      precio,
+      facultad,
+      estado,
+    } = req.body as {
+      categoria_id?: number;
+      modalidad?: string;
+      tipo?: string;
+      titulo?: string;
+      descripcion?: string;
+      precio?: number;
+      facultad?: string;
+      estado?: string;
+    };
+
+    // Verificar que la publicación exista y sea del usuario
+    const pubRes = await pool.query(
+      "SELECT usuario_id FROM publicaciones WHERE id = $1",
+      [id]
+    );
+
+    if (pubRes.rows.length === 0) {
+      return res.status(404).json({ message: "Publicación no encontrada" });
+    }
+
+    const ownerId = pubRes.rows[0].usuario_id as string;
+
+    if (ownerId !== req.user.id) {
+      return res.status(403).json({
+        message: "No puedes editar esta publicación",
+      });
+    }
+
+    const update = `
+      UPDATE publicaciones
+      SET
+        categoria_id = COALESCE($1, categoria_id),
+        modalidad    = COALESCE($2, modalidad),
+        tipo         = COALESCE($3, tipo),
+        titulo       = COALESCE($4, titulo),
+        descripcion  = COALESCE($5, descripcion),
+        precio       = COALESCE($6, precio),
+        facultad     = COALESCE($7, facultad),
+        estado       = COALESCE($8, estado)
+      WHERE id = $9
+      RETURNING *;
+    `;
+
+    const { rows } = await pool.query(update, [
+      categoria_id ?? null,
+      modalidad ?? null,
+      tipo ?? null,
+      titulo ?? null,
+      descripcion ?? null,
+      precio ?? null,
+      facultad ?? null,
+      estado ?? null,
+      id,
+    ]);
+
+    return res.json(rows[0]);
+  } catch (error) {
+    console.error("Error actualizando publicación:", error);
+    return res
+      .status(500)
+      .json({ message: "Error al actualizar la publicación" });
+  }
+};
+
+/**
+ * Eliminar publicación 
+ */
+export const eliminarPublicacion = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+
+  if (!req.user) {
+    return res.status(401).json({ message: "No autorizado" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Verificar que la publicación exista y sea del usuario logueado
+    const pubRes = await client.query(
+      "SELECT usuario_id FROM publicaciones WHERE id = $1",
+      [id]
+    );
+
+    if (pubRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Publicación no encontrada" });
+    }
+
+    const ownerId = pubRes.rows[0].usuario_id as string;
+
+    if (ownerId !== req.user.id) {
+      await client.query("ROLLBACK");
+      return res
+        .status(403)
+        .json({ message: "No puedes eliminar esta publicación" });
+    }
+
+    // Borrar imágenes asociadas (si no tienes ON DELETE CASCADE)
+    await client.query(
+      "DELETE FROM imagenes_publicacion WHERE publicacion_id = $1",
+      [id]
+    );
+
+    // Borrar la publicación
+    await client.query("DELETE FROM publicaciones WHERE id = $1", [id]);
+
+    await client.query("COMMIT");
+    return res
+      .status(200)
+      .json({ message: "Publicación eliminada correctamente" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error eliminando publicación:", error);
+    return res
+      .status(500)
+      .json({ message: "Error al eliminar la publicación" });
+  } finally {
+    client.release();
   }
 };
