@@ -62,3 +62,32 @@ export const crearOrden = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Error al crear la orden" });
   }
 };
+
+// Listar órdenes del usuario (como comprador o vendedor)
+export const listarMisOrdenes = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "No autorizado" });
+    }
+
+    const query = `
+      SELECT
+        o.*,
+        p.titulo,
+        ucomp.nombre AS comprador_nombre,
+        uven.nombre AS vendedor_nombre
+      FROM ordenes o
+      JOIN publicaciones p ON o.publicacion_id = p.id
+      JOIN usuarios ucomp ON o.comprador_id = ucomp.id
+      JOIN usuarios uven ON o.vendedor_id = uven.id
+      WHERE o.comprador_id = $1 OR o.vendedor_id = $1
+      ORDER BY o.creada_en DESC;
+    `;
+
+    const { rows } = await pool.query(query, [req.user.id]);
+    return res.json(rows);
+  } catch (error) {
+    console.error("Error listando ordenes:", error);
+    return res.status(500).json({ message: "Error al obtener las órdenes" });
+  }
+};

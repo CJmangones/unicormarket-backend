@@ -1,9 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
-import {
-  crearOrden,
-  listarMisOrdenes,   
-} from "../controllers/ordenController";
+import { crearOrden, listarMisOrdenes } from "../controllers/ordenController";
 
 const router = Router();
 

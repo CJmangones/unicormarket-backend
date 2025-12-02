@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+
 import authRoutes from "./routes/authRoutes";
 import publicacionRoutes from "./routes/publicacionRoutes";
 import truequeRoutes from "./routes/truequeRoutes";
@@ -24,11 +25,11 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/publicaciones", publicacionRoutes);
 app.use("/api/trueques", truequeRoutes);
-app.use("/api/ordenes", ordenRoutes);
+app.use("/api/ordenes", ordenRoutes);   // 👈 IMPORTANTE
 app.use("/api/mensajes", mensajeRoutes);
 app.use("/api/calificaciones", calificacionRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 
 app.listen(port, () => {
-  console.log(`Servidor escuchando en http://localhost:${port}`);
+  console.log(`Servidor corriendo en el puerto ${port}`);
 });
